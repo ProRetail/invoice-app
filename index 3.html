@@ -1,0 +1,228 @@
+<!doctype html>
+<html lang="ru">
+<head>
+<meta charset="utf-8">
+<meta name="viewport" content="width=device-width, initial-scale=1">
+<title>Накладная</title>
+<style>
+*{box-sizing:border-box}
+body{margin:0;font-family:-apple-system,BlinkMacSystemFont,"Segoe UI",Arial,sans-serif;background:#f6f7fb;color:#111}
+header{height:64px;display:flex;align-items:center;justify-content:space-between;padding:0 16px;background:#fff;border-bottom:1px solid #e8e8e8;position:sticky;top:0;z-index:5}
+header h1{font-size:21px;margin:0}
+header button{border:0;background:#fff;font-size:26px;cursor:pointer}
+main{padding:14px}
+.topFields{display:grid;grid-template-columns:1fr 1fr;gap:10px;margin-bottom:10px}
+.fieldBox{background:#fff;border:1px solid #e5e7ef;border-radius:14px;padding:10px}
+.fieldBox label{display:block;font-size:12px;color:#777;margin-bottom:4px}
+.fieldBox input{width:100%;border:0;font-size:17px;outline:none;padding:8px;background:transparent;text-align:left}
+.summary{display:grid;grid-template-columns:repeat(3,1fr);gap:10px;margin-bottom:14px}
+.summary div{background:#fff;border:1px solid #e5e7ef;border-radius:14px;padding:14px}
+.summary span{display:block;color:#777;font-size:13px;margin-bottom:8px}
+.summary b{font-size:24px}
+.tableWrap{overflow:auto;background:#fff;border:1px solid #ddd;border-radius:12px;max-height:68vh}
+table{border-collapse:collapse;min-width:1420px;width:100%}
+th,td{border:1px solid #e3e3e3;padding:6px;text-align:center;vertical-align:middle}
+th{background:#f7f7f7;font-size:13px;position:sticky;top:0;z-index:2;white-space:nowrap}
+td:first-child,th:first-child{text-align:left;min-width:150px;position:sticky;left:0;background:#fff;z-index:1}
+th:first-child{background:#f7f7f7;z-index:3}
+input{width:100%;border:0;background:transparent;text-align:center;font-size:15px;outline:none;padding:8px 4px}
+td:first-child input{text-align:left}
+input.small{font-size:13px;color:#6b7280}
+.photoBox{width:64px;height:64px;border:1px dashed #bbb;border-radius:8px;display:flex;align-items:center;justify-content:center;margin:auto;overflow:hidden;background:#fafafa;cursor:pointer;position:relative}
+.photoBox input{display:none}
+.photoBox img{width:100%;height:100%;object-fit:cover;display:none}
+.photoBox.hasPhoto span{display:none}
+.photoBox.hasPhoto img{display:block}
+.qty,.sum,tfoot td{font-weight:700;background:#fbfbfb}
+.delete{border:0;background:#ffefef;color:#d11;border-radius:8px;font-size:20px;width:32px;height:32px;padding:0;line-height:1;cursor:pointer}
+.actions{display:grid;grid-template-columns:2fr 1fr 1fr 1fr;gap:10px;margin-top:14px}
+.actions button{border:1px solid #d9dce7;background:#fff;border-radius:14px;padding:15px;font-size:16px;cursor:pointer}
+.actions .primary{background:#1769ff;color:#fff;border-color:#1769ff}
+.actions .pdf{background:#111;color:#fff;border-color:#111}
+.note{font-size:12px;color:#666;margin-top:8px}
+@media(max-width:700px){
+  main{padding:10px}
+  .topFields{grid-template-columns:1fr}
+  .summary{grid-template-columns:1fr 1fr 1fr}
+  .summary div{padding:10px}
+  .summary b{font-size:20px}
+  .actions{grid-template-columns:1fr}
+}
+</style>
+</head>
+<body>
+<header><button id="menuBtn">☰</button><h1>Накладная</h1><button id="addBtnTop">＋</button></header>
+<main>
+<section class="topFields">
+  <div class="fieldBox"><label>Имя клиента</label><input id="clientName" placeholder="Например: Иванов"></div>
+  <div class="fieldBox"><label>Номер накладной</label><input id="invoiceNumber" placeholder="Например: 001"></div>
+</section>
+<section class="summary"><div><span>Позиций</span><b id="totalRows">0</b></div><div><span>Кол-во</span><b id="totalQty">0</b></div><div><span>Сумма</span><b id="totalSum">0 ¥</b></div></section>
+<div class="tableWrap"><table><thead><tr><th>Наименование<br><small>артикул</small></th><th>Фото</th><th>Цвет</th><th>F</th><th>XS/28</th><th>S/29</th><th>M/30</th><th>L/31</th><th>XL/32</th><th>XXL/33</th><th>3XL/34</th><th>4XL/35</th><th>36</th><th>38</th><th>40</th><th>42</th><th>Штук</th><th>Цена ¥</th><th>Сумма ¥</th><th></th></tr></thead><tbody id="tbody"></tbody><tfoot><tr><td colspan="3">ИТОГО</td><td id="sum_f">0</td><td id="sum_xs28">0</td><td id="sum_s29">0</td><td id="sum_m30">0</td><td id="sum_l31">0</td><td id="sum_xl32">0</td><td id="sum_xxl33">0</td><td id="sum_xxxl34">0</td><td id="sum_xxxxl35">0</td><td id="sum_size36">0</td><td id="sum_size38">0</td><td id="sum_size40">0</td><td id="sum_size42">0</td><td id="footQty">0</td><td></td><td id="footSum">0</td><td></td></tr></tfoot></table></div>
+<section class="actions"><button class="primary" id="addBtn">＋ Добавить строку</button><button class="pdf" id="pdfBtn">Сохранить PDF</button><button id="exportBtn">CSV</button><button id="clearBtn">Очистить</button></section>
+<div class="note">PDF сохранится с именем: Накладная_номер_клиент_дата.pdf</div>
+</main>
+<template id="rowTemplate"><tr><td><input data-field="name" placeholder="Футболка"><input data-field="article" placeholder="25035" class="small"></td><td><label class="photoBox"><input type="file" accept="image/*" data-field="photo"><img><span>＋</span></label></td><td><input data-field="color" placeholder="черный"></td><td><input type="number" min="0" inputmode="numeric" data-field="f"></td><td><input type="number" min="0" inputmode="numeric" data-field="xs28"></td><td><input type="number" min="0" inputmode="numeric" data-field="s29"></td><td><input type="number" min="0" inputmode="numeric" data-field="m30"></td><td><input type="number" min="0" inputmode="numeric" data-field="l31"></td><td><input type="number" min="0" inputmode="numeric" data-field="xl32"></td><td><input type="number" min="0" inputmode="numeric" data-field="xxl33"></td><td><input type="number" min="0" inputmode="numeric" data-field="xxxl34"></td><td><input type="number" min="0" inputmode="numeric" data-field="xxxxl35"></td><td><input type="number" min="0" inputmode="numeric" data-field="size36"></td><td><input type="number" min="0" inputmode="numeric" data-field="size38"></td><td><input type="number" min="0" inputmode="numeric" data-field="size40"></td><td><input type="number" min="0" inputmode="numeric" data-field="size42"></td><td class="qty">0</td><td><input type="number" min="0" inputmode="decimal" data-field="price" placeholder="0"></td><td class="sum">0</td><td><button class="delete" title="Удалить">×</button></td></tr></template>
+<script src="https://cdn.jsdelivr.net/npm/pdfmake@0.2.7/build/pdfmake.min.js"></script>
+<script src="https://cdn.jsdelivr.net/npm/pdfmake@0.2.7/build/vfs_fonts.js"></script>
+<script>
+const sizeFields = ["f", "xs28", "s29", "m30", "l31", "xl32", "xxl33", "xxxl34", "xxxxl35", "size36", "size38", "size40", "size42"];
+const sizeLabels = ["F", "XS/28", "S/29", "M/30", "L/31", "XL/32", "XXL/33", "3XL/34", "4XL/35", "36", "38", "40", "42"];
+const tbody = document.querySelector("#tbody");
+const template = document.querySelector("#rowTemplate");
+const money = n => new Intl.NumberFormat("ru-RU").format(Number(n) || 0) + " ¥";
+
+let rows = JSON.parse(localStorage.getItem("invoiceRowsFinal") || "[]");
+let clientName = localStorage.getItem("invoiceClientFinal") || "";
+let invoiceNumber = localStorage.getItem("invoiceNumberFinal") || "";
+
+function num(v){ return Number(String(v || "").replace(",", ".")) || 0; }
+function emptyRow(){ const r={name:"",article:"",photo:"",color:"",price:0}; sizeFields.forEach(f=>r[f]=0); return r; }
+function save(){ localStorage.setItem("invoiceRowsFinal", JSON.stringify(rows)); localStorage.setItem("invoiceClientFinal", clientName); localStorage.setItem("invoiceNumberFinal", invoiceNumber); }
+function rowQty(r){ return sizeFields.reduce((s,f)=>s+num(r[f]),0); }
+function rowSum(r){ return rowQty(r)*num(r.price); }
+function updateRow(tr,r){ tr.querySelector(".qty").textContent=rowQty(r); tr.querySelector(".sum").textContent=rowSum(r); }
+
+function renderTotals(){
+  const tq=rows.reduce((s,r)=>s+rowQty(r),0);
+  const ts=rows.reduce((s,r)=>s+rowSum(r),0);
+  document.querySelector("#totalRows").textContent=rows.length;
+  document.querySelector("#totalQty").textContent=tq;
+  document.querySelector("#totalSum").textContent=money(ts);
+  document.querySelector("#footQty").textContent=tq;
+  document.querySelector("#footSum").textContent=ts;
+  sizeFields.forEach(f=>document.querySelector("#sum_"+f).textContent=rows.reduce((s,r)=>s+num(r[f]),0));
+}
+
+function render(){
+  tbody.innerHTML="";
+  rows.forEach((row,index)=>{
+    sizeFields.forEach(f=>row[f]=num(row[f]));
+    row.price=num(row.price);
+    const tr=template.content.cloneNode(true).querySelector("tr");
+    tr.querySelectorAll("input[data-field]").forEach(input=>{
+      const field=input.dataset.field;
+      if(field!=="photo") input.value=row[field]||"";
+      input.addEventListener("input",()=>{
+        if(field==="photo") return;
+        rows[index][field]=input.type==="number"?num(input.value):input.value;
+        updateRow(tr,rows[index]);
+        renderTotals();
+        save();
+      });
+      if(field==="photo") input.addEventListener("change",e=>{
+        const file=e.target.files[0]; if(!file) return;
+        const reader=new FileReader();
+        reader.onload=()=>{ rows[index].photo=reader.result; save(); render(); };
+        reader.readAsDataURL(file);
+      });
+    });
+    const box=tr.querySelector(".photoBox"), img=box.querySelector("img");
+    if(row.photo){ img.src=row.photo; box.classList.add("hasPhoto"); }
+    tr.querySelector(".delete").addEventListener("click",()=>{ rows.splice(index,1); save(); render(); });
+    updateRow(tr,row);
+    tbody.appendChild(tr);
+  });
+  renderTotals();
+}
+
+function addRow(){ rows.push(emptyRow()); save(); render(); }
+
+function cleanFileName(text){
+  return String(text || "")
+    .trim()
+    .replace(/[\\/:*?"<>|]/g, "")
+    .replace(/\s+/g, "_")
+    .slice(0, 80);
+}
+
+function getPdfFileName(){
+  const date = new Date().toLocaleDateString("ru-RU").replaceAll(".", "-");
+  const client = cleanFileName(clientName) || "Клиент";
+  const number = cleanFileName(invoiceNumber);
+  return number ? `Накладная_${number}_${client}_${date}.pdf` : `Накладная_${client}_${date}.pdf`;
+}
+
+function exportPDF(){
+  if(!window.pdfMake){ alert("Для создания PDF нужен интернет при первом открытии."); return; }
+  const tq=rows.reduce((s,r)=>s+rowQty(r),0), ts=rows.reduce((s,r)=>s+rowSum(r),0);
+  const dateText = new Date().toLocaleDateString("ru-RU");
+
+  const body=[[
+    {text:"Наименование",bold:true},{text:"Артикул",bold:true},{text:"Фото",bold:true},{text:"Цвет",bold:true},
+    ...sizeLabels.map(s=>({text:s,bold:true})),{text:"Штук",bold:true},{text:"Цена ¥",bold:true},{text:"Сумма ¥",bold:true}
+  ]];
+
+  rows.forEach(r=>body.push([
+    r.name||"",
+    r.article||"",
+    r.photo?{image:r.photo,width:28,height:28,fit:[28,28]}:"",
+    r.color||"",
+    ...sizeFields.map(f=>String(r[f]||"")),
+    String(rowQty(r)),
+    String(r.price||""),
+    String(rowSum(r))
+  ]));
+
+  body.push([
+    {text:"ИТОГО",bold:true},"","","",
+    ...sizeFields.map(f=>({text:String(rows.reduce((s,r)=>s+num(r[f]),0)),bold:true})),
+    {text:String(tq),bold:true},"",{text:String(ts),bold:true}
+  ]);
+
+  const doc={
+    pageSize:"A4",
+    pageOrientation:"landscape",
+    pageMargins:[10,12,10,12],
+    content:[
+      {text:"НАКЛАДНАЯ",fontSize:16,bold:true,alignment:"left",margin:[0,0,0,4]},
+      {columns:[
+        {text:`Клиент: ${clientName || "—"}`,fontSize:10,bold:true},
+        {text:`№: ${invoiceNumber || "—"}`,fontSize:10,bold:true,alignment:"center"},
+        {text:`Дата: ${dateText}`,fontSize:10,bold:true,alignment:"right"}
+      ], margin:[0,0,0,8]},
+      {text:`Позиций: ${rows.length}   Количество: ${tq}   Итоговая сумма: ${ts} ¥`,fontSize:10,bold:true,margin:[0,0,0,8]},
+      {
+        table:{headerRows:1,widths:[42,34,32,34,...sizeFields.map(()=>20),24,26,30],body},
+        layout:{
+          hLineWidth:()=>0.4,
+          vLineWidth:()=>0.4,
+          paddingLeft:()=>2,
+          paddingRight:()=>2,
+          paddingTop:()=>2,
+          paddingBottom:()=>2
+        }
+      },
+      {text:`ИТОГО К ОПЛАТЕ: ${ts} ¥`,fontSize:15,bold:true,alignment:"right",margin:[0,10,0,0]}
+    ],
+    defaultStyle:{font:"Roboto",fontSize:7,alignment:"center"}
+  };
+
+  pdfMake.createPdf(doc).download(getPdfFileName());
+}
+
+function exportCSV(){
+  const header=["Наименование","Артикул","Фото","Цвет",...sizeLabels,"Штук","Цена ¥","Сумма ¥"];
+  const lines=[header.join(";")];
+  rows.forEach(r=>lines.push([r.name,r.article,"",r.color,...sizeFields.map(f=>r[f]||0),rowQty(r),r.price||0,rowSum(r)].map(v=>`"${String(v??"").replaceAll('"','""')}"`).join(";")));
+  const blob=new Blob(["\ufeff"+lines.join("\n")],{type:"text/csv;charset=utf-8"});
+  const a=document.createElement("a");
+  a.href=URL.createObjectURL(blob);
+  a.download=(cleanFileName(clientName)||"zakaz")+".csv";
+  a.click();
+}
+
+document.querySelector("#clientName").value=clientName;
+document.querySelector("#invoiceNumber").value=invoiceNumber;
+document.querySelector("#clientName").addEventListener("input",e=>{clientName=e.target.value;save();});
+document.querySelector("#invoiceNumber").addEventListener("input",e=>{invoiceNumber=e.target.value;save();});
+document.querySelector("#addBtn").addEventListener("click",addRow);
+document.querySelector("#addBtnTop").addEventListener("click",addRow);
+document.querySelector("#pdfBtn").addEventListener("click",exportPDF);
+document.querySelector("#exportBtn").addEventListener("click",exportCSV);
+document.querySelector("#clearBtn").addEventListener("click",()=>{if(confirm("Очистить накладную?")){rows=[];save();render();}});
+if(rows.length===0){ rows=[emptyRow()]; save(); }
+render();
+</script>
+</body>
+</html>
