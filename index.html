@@ -17,7 +17,7 @@ main{padding:12px}
 .topFields{display:grid;grid-template-columns:1fr 1fr;gap:10px;margin-bottom:10px}
 .fieldBox{background:#fff;border:1px solid #e0e3ed;border-radius:14px;padding:10px}
 .fieldBox label{display:block;font-size:13px;color:#777;margin-bottom:4px}
-.fieldBox input,.fieldBox textarea{width:100%;border:0;font-size:17px;outline:none;padding:8px;background:transparent;text-align:left;font-family:inherit}
+.fieldBox input,.fieldBox textarea,.fieldBox select{width:100%;border:0;font-size:17px;outline:none;padding:8px;background:transparent;text-align:left;font-family:inherit}
 .fieldBox textarea{min-height:48px;resize:vertical}
 .summary{display:grid;grid-template-columns:repeat(3,1fr);gap:10px;margin-bottom:14px}
 .summary div{background:#fff;border:1px solid #e0e3ed;border-radius:14px;padding:14px}
@@ -50,7 +50,7 @@ input.small{font-size:13px;color:#6b7280}
 .photoModal img{max-width:96vw;max-height:92vh;object-fit:contain;border-radius:12px;background:#fff}
 .photoModal button{position:absolute;top:16px;right:16px;width:46px;height:46px;border:0;border-radius:50%;font-size:30px;background:#fff;cursor:pointer}
 #catalogSection{display:none}
-.catalogForm{background:#fff;border:1px solid #e0e3ed;border-radius:16px;padding:12px;margin-bottom:12px}
+.catalogToolbar{display:grid;grid-template-columns:1fr 1fr;gap:10px;margin-bottom:12px}.modeNote{font-size:12px;color:#666;margin:6px 0 12px;line-height:1.35}.adminOnly.hidden{display:none}.adminLogin{display:grid;grid-template-columns:1fr auto auto;gap:8px}.adminLogin button{border:1px solid #d9dce7;background:#fff;border-radius:10px;padding:8px 10px;font-size:14px;cursor:pointer}.adminLogin #adminLoginBtn{background:#111;color:#fff;border-color:#111}.catalogForm{background:#fff;border:1px solid #e0e3ed;border-radius:16px;padding:12px;margin-bottom:12px}
 .catalogForm h2{margin:0 0 10px;font-size:20px}
 .formGrid{display:grid;grid-template-columns:1.2fr 1fr 1fr 1fr;gap:10px}
 .formGrid .wide{grid-column:1/-1}
@@ -78,7 +78,7 @@ input.small{font-size:13px;color:#6b7280}
 .empty{padding:18px;background:#fff;border:1px dashed #bbb;border-radius:14px;color:#666;text-align:center}
 @media(max-width:700px){
   main{padding:10px}
-  .topFields,.formGrid{grid-template-columns:1fr}
+  .topFields,.formGrid,.catalogToolbar{grid-template-columns:1fr}
   .summary{grid-template-columns:1fr 1fr 1fr}
   .summary div{padding:10px}
   .summary b{font-size:28px}
@@ -166,12 +166,53 @@ input.small{font-size:13px;color:#6b7280}
 </section>
 
 <section id="catalogSection">
-  <div class="catalogForm">
+  <div class="catalogToolbar">
+    <div class="fieldBox">
+      <label>Категория</label>
+      <select id="categoryFilter">
+        <option value="Все">Все категории</option>
+        <option value="Футболки">Футболки</option>
+        <option value="Поло">Поло</option>
+        <option value="Рубашки">Рубашки</option>
+        <option value="Джинсы">Джинсы</option>
+        <option value="Брюки">Брюки</option>
+        <option value="Шорты">Шорты</option>
+        <option value="Худи/свитшоты">Худи/свитшоты</option>
+        <option value="Куртки">Куртки</option>
+        <option value="Костюмы">Костюмы</option>
+        <option value="Другое">Другое</option>
+      </select>
+    </div>
+    <div class="fieldBox">
+      <label>Доступ администратора</label>
+      <div class="adminLogin">
+        <input id="adminPin" type="password" inputmode="numeric" placeholder="PIN админа">
+        <button id="adminLoginBtn">Войти</button>
+        <button id="adminLogoutBtn" style="display:none">Выйти</button>
+      </div>
+    </div>
+  </div>
+  <div class="modeNote">Клиент видит каталог и может добавлять товары в накладную. Добавление/удаление товаров доступно только после входа администратора.</div>
+  <div class="catalogForm adminOnly">
     <h2>Добавить товар в каталог</h2>
     <div class="formGrid">
       <div class="fieldBox"><label>Название</label><input id="pName" placeholder="Футболка Basic"></div>
       <div class="fieldBox"><label>Артикул</label><input id="pArticle" placeholder="25035"></div>
       <div class="fieldBox"><label>Цвет</label><input id="pColor" placeholder="черный"></div>
+      <div class="fieldBox"><label>Категория</label>
+        <select id="pCategory">
+          <option value="Футболки">Футболки</option>
+          <option value="Поло">Поло</option>
+          <option value="Рубашки">Рубашки</option>
+          <option value="Джинсы">Джинсы</option>
+          <option value="Брюки">Брюки</option>
+          <option value="Шорты">Шорты</option>
+          <option value="Худи/свитшоты">Худи/свитшоты</option>
+          <option value="Куртки">Куртки</option>
+          <option value="Костюмы">Костюмы</option>
+          <option value="Другое">Другое</option>
+        </select>
+      </div>
       <div class="fieldBox"><label>Цена ¥</label><input id="pPrice" type="number" min="0" inputmode="decimal" placeholder="85"></div>
       <div class="fieldBox wide"><label>Описание</label><textarea id="pDesc" placeholder="Краткое описание товара"></textarea></div>
       <div class="fieldBox wide">
@@ -430,6 +471,7 @@ function clearProductForm(){
   document.querySelector("#pName").value = "";
   document.querySelector("#pArticle").value = "";
   document.querySelector("#pColor").value = "";
+  document.querySelector("#pCategory").value = "Футболки";
   document.querySelector("#pPrice").value = "";
   document.querySelector("#pDesc").value = "";
   productPhoto = "";
@@ -439,6 +481,7 @@ function clearProductForm(){
 }
 
 function saveProduct(){
+  if(!isAdmin){ alert("Добавлять товар может только администратор"); return; }
   const name = document.querySelector("#pName").value.trim();
   if(!name){ alert("Укажи название товара"); return; }
   const selectedSizes = Array.from(document.querySelectorAll("#pSizes input:checked")).map(i=>i.value);
@@ -447,6 +490,7 @@ function saveProduct(){
     name,
     article: document.querySelector("#pArticle").value.trim(),
     color: document.querySelector("#pColor").value.trim(),
+    category: document.querySelector("#pCategory").value,
     price: num(document.querySelector("#pPrice").value),
     desc: document.querySelector("#pDesc").value.trim(),
     photo: productPhoto,
@@ -460,12 +504,21 @@ function saveProduct(){
 
 function renderCatalog(){
   const grid = document.querySelector("#catalogGrid");
+  const selectedCategory = document.querySelector("#categoryFilter")?.value || "Все";
+  const visibleProducts = selectedCategory === "Все" ? products : products.filter(p => (p.category || "Другое") === selectedCategory);
   grid.innerHTML = "";
   if(products.length === 0){
-    grid.innerHTML = '<div class="empty">Каталог пуст. Добавь первый товар сверху.</div>';
+    grid.innerHTML = '<div class="empty">Каталог пуст. Включи режим Админ, чтобы добавить первый товар.</div>';
+    applyMode();
     return;
   }
-  products.forEach((p, index)=>{
+  if(visibleProducts.length === 0){
+    grid.innerHTML = '<div class="empty">В этой категории пока нет товаров.</div>';
+    applyMode();
+    return;
+  }
+  visibleProducts.forEach((p)=>{ 
+    const index = products.indexOf(p);
     const card = document.createElement("div");
     card.className = "productCard";
     const sizeText = (p.sizes || []).map(f => sizePairs.find(x=>x[0]===f)?.[1] || f).join(", ");
@@ -473,7 +526,7 @@ function renderCatalog(){
       <img src="${p.photo || ""}" alt="">
       <div class="productBody">
         <div class="productTitle">${p.name || ""}</div>
-        <div class="productMeta">Артикул: ${p.article || "—"}<br>Цвет: ${p.color || "—"}</div>
+        <div class="productMeta">Категория: ${p.category || "Другое"}<br>Артикул: ${p.article || "—"}<br>Цвет: ${p.color || "—"}</div>
         <div class="productPrice">${money(p.price)}</div>
         <div class="productSizes">Размеры: ${sizeText || "все"}</div>
         <div class="productMeta">${p.desc || ""}</div>
@@ -488,6 +541,7 @@ function renderCatalog(){
     img.addEventListener("click",()=>showZoom(p.photo));
     card.querySelector(".add").addEventListener("click",()=>addProductToInvoice(p));
     card.querySelector(".del").addEventListener("click",()=>{
+      if(!isAdmin){ alert("Удалять товар может только администратор"); return; }
       if(confirm("Удалить товар из каталога?")){
         products.splice(index,1);
         saveProducts();
@@ -496,6 +550,38 @@ function renderCatalog(){
     });
     grid.appendChild(card);
   });
+  applyMode();
+}
+
+const ADMIN_PIN = "4581";
+let isAdmin = localStorage.getItem("isAdminV3") === "true";
+
+function applyMode(){
+  document.querySelectorAll(".adminOnly").forEach(el => el.classList.toggle("hidden", !isAdmin));
+  document.querySelectorAll(".cardButtons .del").forEach(btn => btn.style.display = isAdmin ? "block" : "none");
+  document.querySelector("#adminLoginBtn").style.display = isAdmin ? "none" : "block";
+  document.querySelector("#adminLogoutBtn").style.display = isAdmin ? "block" : "none";
+  document.querySelector("#adminPin").style.display = isAdmin ? "none" : "block";
+}
+
+function loginAdmin(){
+  const pin = document.querySelector("#adminPin").value.trim();
+  if(pin === ADMIN_PIN){
+    isAdmin = true;
+    localStorage.setItem("isAdminV3", "true");
+    document.querySelector("#adminPin").value = "";
+    applyMode();
+    renderCatalog();
+  } else {
+    alert("Неверный PIN администратора");
+  }
+}
+
+function logoutAdmin(){
+  isAdmin = false;
+  localStorage.removeItem("isAdminV3");
+  applyMode();
+  renderCatalog();
 }
 
 document.querySelector("#clientName").value=clientName;
@@ -509,6 +595,10 @@ document.querySelector("#exportBtn").addEventListener("click",exportCSV);
 document.querySelector("#clearBtn").addEventListener("click",()=>{if(confirm("Очистить накладную?")){rows=[];save();render();}});
 document.querySelector("#invoiceTab").addEventListener("click",()=>switchTab("invoice"));
 document.querySelector("#catalogTab").addEventListener("click",()=>switchTab("catalog"));
+document.querySelector("#categoryFilter").addEventListener("change",renderCatalog);
+document.querySelector("#adminLoginBtn").addEventListener("click",loginAdmin);
+document.querySelector("#adminLogoutBtn").addEventListener("click",logoutAdmin);
+document.querySelector("#adminPin").addEventListener("keydown",e=>{ if(e.key==="Enter") loginAdmin(); });
 document.querySelector("#saveProductBtn").addEventListener("click",saveProduct);
 document.querySelector("#clearProductBtn").addEventListener("click",clearProductForm);
 document.querySelector("#pPhoto").addEventListener("change", e=>{
@@ -524,6 +614,7 @@ document.querySelector("#pPhoto").addEventListener("change", e=>{
 
 renderSizePicker();
 renderCatalog();
+applyMode();
 if(rows.length===0){ rows=[emptyRow()]; save(); }
 render();
 </script>
