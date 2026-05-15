@@ -7,14 +7,18 @@
 <style>
 *{box-sizing:border-box}
 body{margin:0;font-family:-apple-system,BlinkMacSystemFont,"Segoe UI",Arial,sans-serif;background:#f6f7fb;color:#111}
-header{height:64px;display:flex;align-items:center;justify-content:space-between;padding:0 16px;background:#fff;border-bottom:1px solid #e8e8e8;position:sticky;top:0;z-index:5}
-header h1{font-size:26px;margin:0;font-weight:800}
+header{height:64px;display:flex;align-items:center;justify-content:space-between;padding:0 16px;background:#fff;border-bottom:1px solid #e8e8e8;position:sticky;top:0;z-index:10}
+header h1{font-size:24px;margin:0;font-weight:800}
 header button{border:0;background:#fff;font-size:30px;color:#1769ff;cursor:pointer}
 main{padding:12px}
+.tabs{display:grid;grid-template-columns:1fr 1fr;gap:8px;margin-bottom:12px}
+.tabs button{border:1px solid #d9dce7;background:#fff;border-radius:14px;padding:13px;font-size:16px;font-weight:700}
+.tabs button.active{background:#1769ff;color:#fff;border-color:#1769ff}
 .topFields{display:grid;grid-template-columns:1fr 1fr;gap:10px;margin-bottom:10px}
 .fieldBox{background:#fff;border:1px solid #e0e3ed;border-radius:14px;padding:10px}
 .fieldBox label{display:block;font-size:13px;color:#777;margin-bottom:4px}
-.fieldBox input{width:100%;border:0;font-size:18px;outline:none;padding:8px;background:transparent;text-align:left}
+.fieldBox input,.fieldBox textarea{width:100%;border:0;font-size:17px;outline:none;padding:8px;background:transparent;text-align:left;font-family:inherit}
+.fieldBox textarea{min-height:48px;resize:vertical}
 .summary{display:grid;grid-template-columns:repeat(3,1fr);gap:10px;margin-bottom:14px}
 .summary div{background:#fff;border:1px solid #e0e3ed;border-radius:14px;padding:14px}
 .summary span{display:block;color:#777;font-size:15px;margin-bottom:6px}
@@ -37,21 +41,48 @@ input.small{font-size:13px;color:#6b7280}
 .qty,.sum,tfoot td{font-weight:700;background:#fbfbfb}
 .delete{border:0;background:#ffefef;color:#d11;border-radius:8px;font-size:20px;width:32px;height:32px;padding:0;line-height:1;cursor:pointer}
 .actions{display:grid;grid-template-columns:2fr 1fr 1fr 1fr;gap:10px;margin-top:14px}
-.actions button{border:1px solid #d9dce7;background:#fff;border-radius:14px;padding:15px;font-size:16px;cursor:pointer}
-.actions .primary{background:#1769ff;color:#fff;border-color:#1769ff}
+.actions button,.catalogActions button{border:1px solid #d9dce7;background:#fff;border-radius:14px;padding:15px;font-size:16px;cursor:pointer}
+.actions .primary,.catalogActions .primary{background:#1769ff;color:#fff;border-color:#1769ff}
 .actions .pdf{background:#111;color:#fff;border-color:#111}
 .note{font-size:12px;color:#666;margin-top:8px;line-height:1.35}
 .photoModal{position:fixed;inset:0;background:rgba(0,0,0,.92);display:none;align-items:center;justify-content:center;z-index:99999;padding:18px}
 .photoModal.active{display:flex}
 .photoModal img{max-width:96vw;max-height:92vh;object-fit:contain;border-radius:12px;background:#fff}
 .photoModal button{position:absolute;top:16px;right:16px;width:46px;height:46px;border:0;border-radius:50%;font-size:30px;background:#fff;cursor:pointer}
+#catalogSection{display:none}
+.catalogForm{background:#fff;border:1px solid #e0e3ed;border-radius:16px;padding:12px;margin-bottom:12px}
+.catalogForm h2{margin:0 0 10px;font-size:20px}
+.formGrid{display:grid;grid-template-columns:1.2fr 1fr 1fr 1fr;gap:10px}
+.formGrid .wide{grid-column:1/-1}
+.catalogPhoto{height:110px;border:1px dashed #aaa;border-radius:12px;display:flex;align-items:center;justify-content:center;overflow:hidden;background:#fafafa;cursor:pointer}
+.catalogPhoto input{display:none}
+.catalogPhoto img{width:100%;height:100%;object-fit:cover;display:none}
+.catalogPhoto.hasPhoto span{display:none}
+.catalogPhoto.hasPhoto img{display:block}
+.sizePicker{display:flex;flex-wrap:wrap;gap:6px}
+.sizePicker label{display:flex;gap:4px;align-items:center;border:1px solid #ddd;border-radius:10px;padding:7px 9px;background:#fff;font-size:13px}
+.sizePicker input{width:auto}
+.catalogActions{display:grid;grid-template-columns:2fr 1fr;gap:10px;margin-top:10px}
+.catalogGrid{display:grid;grid-template-columns:repeat(auto-fill,minmax(190px,1fr));gap:12px}
+.productCard{background:#fff;border:1px solid #e0e3ed;border-radius:16px;overflow:hidden}
+.productCard img{width:100%;height:170px;object-fit:cover;background:#f0f0f0;cursor:zoom-in}
+.productBody{padding:10px}
+.productTitle{font-weight:800;font-size:16px;margin-bottom:4px}
+.productMeta{font-size:13px;color:#666;margin-bottom:5px;line-height:1.3}
+.productPrice{font-weight:900;font-size:18px;margin:8px 0}
+.productSizes{font-size:12px;color:#333;margin-bottom:8px}
+.cardButtons{display:grid;grid-template-columns:1fr 38px;gap:8px}
+.cardButtons button{border:1px solid #d9dce7;background:#fff;border-radius:12px;padding:10px;font-size:14px}
+.cardButtons .add{background:#1769ff;color:#fff;border-color:#1769ff}
+.cardButtons .del{background:#ffefef;color:#d11;border-color:#ffefef;font-size:18px}
+.empty{padding:18px;background:#fff;border:1px dashed #bbb;border-radius:14px;color:#666;text-align:center}
 @media(max-width:700px){
   main{padding:10px}
-  .topFields{grid-template-columns:1fr}
+  .topFields,.formGrid{grid-template-columns:1fr}
   .summary{grid-template-columns:1fr 1fr 1fr}
   .summary div{padding:10px}
   .summary b{font-size:28px}
-  .actions{grid-template-columns:1fr}
+  .actions,.catalogActions{grid-template-columns:1fr}
   table{min-width:1500px}
   .sizeCol{min-width:66px}
 }
@@ -60,6 +91,12 @@ input.small{font-size:13px;color:#6b7280}
 <body>
 <header><button id="menuBtn">☰</button><h1>Накладная</h1><button id="addBtnTop">＋</button></header>
 <main>
+<section class="tabs">
+  <button id="invoiceTab" class="active">Накладная</button>
+  <button id="catalogTab">Каталог</button>
+</section>
+
+<section id="invoiceSection">
 <section class="topFields">
   <div class="fieldBox"><label>Имя клиента</label><input id="clientName" placeholder="Например: Иванов"></div>
   <div class="fieldBox"><label>Номер накладной</label><input id="invoiceNumber" placeholder="Например: 001"></div>
@@ -126,6 +163,33 @@ input.small{font-size:13px;color:#6b7280}
   <button id="clearBtn">Очистить</button>
 </section>
 <div class="note">Фото в таблице можно открыть крупно по нажатию. PDF сохраняется с именем: Накладная_номер_клиент_дата.pdf</div>
+</section>
+
+<section id="catalogSection">
+  <div class="catalogForm">
+    <h2>Добавить товар в каталог</h2>
+    <div class="formGrid">
+      <div class="fieldBox"><label>Название</label><input id="pName" placeholder="Футболка Basic"></div>
+      <div class="fieldBox"><label>Артикул</label><input id="pArticle" placeholder="25035"></div>
+      <div class="fieldBox"><label>Цвет</label><input id="pColor" placeholder="черный"></div>
+      <div class="fieldBox"><label>Цена ¥</label><input id="pPrice" type="number" min="0" inputmode="decimal" placeholder="85"></div>
+      <div class="fieldBox wide"><label>Описание</label><textarea id="pDesc" placeholder="Краткое описание товара"></textarea></div>
+      <div class="fieldBox wide">
+        <label>Фото товара</label>
+        <label class="catalogPhoto" id="pPhotoBox"><input id="pPhoto" type="file" accept="image/*"><img id="pPhotoPreview"><span>＋ Добавить фото</span></label>
+      </div>
+      <div class="fieldBox wide">
+        <label>Размеры товара</label>
+        <div class="sizePicker" id="pSizes"></div>
+      </div>
+    </div>
+    <div class="catalogActions">
+      <button class="primary" id="saveProductBtn">Сохранить товар</button>
+      <button id="clearProductBtn">Очистить форму</button>
+    </div>
+  </div>
+  <div id="catalogGrid" class="catalogGrid"></div>
+</section>
 </main>
 
 <div class="photoModal" id="photoModal">
@@ -163,26 +227,31 @@ input.small{font-size:13px;color:#6b7280}
 <script>
 const sizeFields = ["f", "xs28", "s29", "m30", "l31", "xl32", "xxl33", "xxxl34", "xxxxl35", "size36", "size38", "size40", "size42"];
 const sizeLabels = ["F", "XS/28", "S/29", "M/30", "L/31", "XL/32", "XXL/33", "3XL/34", "4XL/35", "36", "38", "40", "42"];
+const sizePairs = [["f", "F"], ["xs28", "XS/28"], ["s29", "S/29"], ["m30", "M/30"], ["l31", "L/31"], ["xl32", "XL/32"], ["xxl33", "XXL/33"], ["xxxl34", "3XL/34"], ["xxxxl35", "4XL/35"], ["size36", "36"], ["size38", "38"], ["size40", "40"], ["size42", "42"]];
 const tbody = document.querySelector("#tbody");
 const template = document.querySelector("#rowTemplate");
 const money = n => new Intl.NumberFormat("ru-RU").format(Number(n) || 0) + " ¥";
 
-let rows = JSON.parse(localStorage.getItem("invoiceRowsFinalV3") || "[]");
-let clientName = localStorage.getItem("invoiceClientFinalV3") || "";
-let invoiceNumber = localStorage.getItem("invoiceNumberFinalV3") || "";
+let rows = JSON.parse(localStorage.getItem("invoiceRowsCatalogV1") || "[]");
+let clientName = localStorage.getItem("invoiceClientCatalogV1") || "";
+let invoiceNumber = localStorage.getItem("invoiceNumberCatalogV1") || "";
+let products = JSON.parse(localStorage.getItem("catalogProductsV1") || "[]");
+let productPhoto = "";
 
 const photoModal = document.querySelector("#photoModal");
 const modalImage = document.querySelector("#modalImage");
 document.querySelector("#closePhoto").addEventListener("click", () => photoModal.classList.remove("active"));
 photoModal.addEventListener("click", e => { if(e.target === photoModal) photoModal.classList.remove("active"); });
 
+function showZoom(src){ if(!src) return; modalImage.src = src; photoModal.classList.add("active"); }
 function num(v){ return Number(String(v || "").replace(",", ".")) || 0; }
-function emptyRow(){ const r={name:"",article:"",photo:"",color:"",price:0}; sizeFields.forEach(f=>r[f]=0); return r; }
+function emptyRow(){ const r={name:"",article:"",photo:"",color:"",price:0,availableSizes:[...sizeFields]}; sizeFields.forEach(f=>r[f]=0); return r; }
 function save(){ 
-  localStorage.setItem("invoiceRowsFinalV3", JSON.stringify(rows)); 
-  localStorage.setItem("invoiceClientFinalV3", clientName); 
-  localStorage.setItem("invoiceNumberFinalV3", invoiceNumber); 
+  localStorage.setItem("invoiceRowsCatalogV1", JSON.stringify(rows)); 
+  localStorage.setItem("invoiceClientCatalogV1", clientName); 
+  localStorage.setItem("invoiceNumberCatalogV1", invoiceNumber); 
 }
+function saveProducts(){ localStorage.setItem("catalogProductsV1", JSON.stringify(products)); }
 function rowQty(r){ return sizeFields.reduce((s,f)=>s+num(r[f]),0); }
 function rowSum(r){ return rowQty(r)*num(r.price); }
 function updateRow(tr,r){ tr.querySelector(".qty").textContent=rowQty(r); tr.querySelector(".sum").textContent=rowSum(r); }
@@ -201,6 +270,7 @@ function renderTotals(){
 function render(){
   tbody.innerHTML="";
   rows.forEach((row,index)=>{
+    if(!row.availableSizes) row.availableSizes = [...sizeFields];
     sizeFields.forEach(f=>row[f]=num(row[f]));
     row.price=num(row.price);
     const tr=template.content.cloneNode(true).querySelector("tr");
@@ -208,6 +278,11 @@ function render(){
     tr.querySelectorAll("input[data-field]").forEach(input=>{
       const field=input.dataset.field;
       if(field!=="photo") input.value=row[field]||"";
+      if(sizeFields.includes(field) && row.availableSizes && !row.availableSizes.includes(field)){
+        input.disabled = true;
+        input.placeholder = "—";
+        input.style.background = "#f0f0f0";
+      }
       input.addEventListener("input",()=>{
         if(field==="photo") return;
         rows[index][field]=input.type==="number"?num(input.value):input.value;
@@ -227,12 +302,7 @@ function render(){
     if(row.photo){
       img.src=row.photo;
       box.classList.add("hasPhoto");
-      img.addEventListener("click",e=>{
-        e.preventDefault();
-        e.stopPropagation();
-        modalImage.src=row.photo;
-        photoModal.classList.add("active");
-      });
+      img.addEventListener("click",e=>{ e.preventDefault(); e.stopPropagation(); showZoom(row.photo); });
     }
 
     tr.querySelector(".delete").addEventListener("click",()=>{ rows.splice(index,1); save(); render(); });
@@ -243,6 +313,20 @@ function render(){
 }
 
 function addRow(){ rows.push(emptyRow()); save(); render(); }
+
+function addProductToInvoice(product){
+  const r = emptyRow();
+  r.name = product.name || "";
+  r.article = product.article || "";
+  r.color = product.color || "";
+  r.price = num(product.price);
+  r.photo = product.photo || "";
+  r.availableSizes = product.sizes && product.sizes.length ? product.sizes : [...sizeFields];
+  rows.push(r);
+  save();
+  render();
+  switchTab("invoice");
+}
 
 function cleanFileName(text){
   return String(text || "").trim().replace(/[\\/:*?"<>|]/g, "").replace(/\s+/g, "_").slice(0, 80);
@@ -323,15 +407,123 @@ function exportCSV(){
   a.click();
 }
 
+function switchTab(tab){
+  const isCatalog = tab === "catalog";
+  document.querySelector("#invoiceSection").style.display = isCatalog ? "none" : "block";
+  document.querySelector("#catalogSection").style.display = isCatalog ? "block" : "none";
+  document.querySelector("#invoiceTab").classList.toggle("active", !isCatalog);
+  document.querySelector("#catalogTab").classList.toggle("active", isCatalog);
+  document.querySelector("header h1").textContent = isCatalog ? "Каталог" : "Накладная";
+}
+
+function renderSizePicker(){
+  const wrap = document.querySelector("#pSizes");
+  wrap.innerHTML = "";
+  sizePairs.forEach(([field,label])=>{
+    const el = document.createElement("label");
+    el.innerHTML = `<input type="checkbox" value="${field}" checked> ${label}`;
+    wrap.appendChild(el);
+  });
+}
+
+function clearProductForm(){
+  document.querySelector("#pName").value = "";
+  document.querySelector("#pArticle").value = "";
+  document.querySelector("#pColor").value = "";
+  document.querySelector("#pPrice").value = "";
+  document.querySelector("#pDesc").value = "";
+  productPhoto = "";
+  document.querySelector("#pPhotoPreview").src = "";
+  document.querySelector("#pPhotoBox").classList.remove("hasPhoto");
+  renderSizePicker();
+}
+
+function saveProduct(){
+  const name = document.querySelector("#pName").value.trim();
+  if(!name){ alert("Укажи название товара"); return; }
+  const selectedSizes = Array.from(document.querySelectorAll("#pSizes input:checked")).map(i=>i.value);
+  const product = {
+    id: Date.now(),
+    name,
+    article: document.querySelector("#pArticle").value.trim(),
+    color: document.querySelector("#pColor").value.trim(),
+    price: num(document.querySelector("#pPrice").value),
+    desc: document.querySelector("#pDesc").value.trim(),
+    photo: productPhoto,
+    sizes: selectedSizes.length ? selectedSizes : [...sizeFields]
+  };
+  products.unshift(product);
+  saveProducts();
+  clearProductForm();
+  renderCatalog();
+}
+
+function renderCatalog(){
+  const grid = document.querySelector("#catalogGrid");
+  grid.innerHTML = "";
+  if(products.length === 0){
+    grid.innerHTML = '<div class="empty">Каталог пуст. Добавь первый товар сверху.</div>';
+    return;
+  }
+  products.forEach((p, index)=>{
+    const card = document.createElement("div");
+    card.className = "productCard";
+    const sizeText = (p.sizes || []).map(f => sizePairs.find(x=>x[0]===f)?.[1] || f).join(", ");
+    card.innerHTML = `
+      <img src="${p.photo || ""}" alt="">
+      <div class="productBody">
+        <div class="productTitle">${p.name || ""}</div>
+        <div class="productMeta">Артикул: ${p.article || "—"}<br>Цвет: ${p.color || "—"}</div>
+        <div class="productPrice">${money(p.price)}</div>
+        <div class="productSizes">Размеры: ${sizeText || "все"}</div>
+        <div class="productMeta">${p.desc || ""}</div>
+        <div class="cardButtons">
+          <button class="add">Добавить в накладную</button>
+          <button class="del">×</button>
+        </div>
+      </div>
+    `;
+    const img = card.querySelector("img");
+    if(!p.photo) img.style.display = "none";
+    img.addEventListener("click",()=>showZoom(p.photo));
+    card.querySelector(".add").addEventListener("click",()=>addProductToInvoice(p));
+    card.querySelector(".del").addEventListener("click",()=>{
+      if(confirm("Удалить товар из каталога?")){
+        products.splice(index,1);
+        saveProducts();
+        renderCatalog();
+      }
+    });
+    grid.appendChild(card);
+  });
+}
+
 document.querySelector("#clientName").value=clientName;
 document.querySelector("#invoiceNumber").value=invoiceNumber;
 document.querySelector("#clientName").addEventListener("input",e=>{clientName=e.target.value;save();});
 document.querySelector("#invoiceNumber").addEventListener("input",e=>{invoiceNumber=e.target.value;save();});
 document.querySelector("#addBtn").addEventListener("click",addRow);
-document.querySelector("#addBtnTop").addEventListener("click",addRow);
+document.querySelector("#addBtnTop").addEventListener("click",()=>{ document.querySelector("#catalogSection").style.display === "block" ? switchTab("invoice") : addRow(); });
 document.querySelector("#pdfBtn").addEventListener("click",exportPDF);
 document.querySelector("#exportBtn").addEventListener("click",exportCSV);
 document.querySelector("#clearBtn").addEventListener("click",()=>{if(confirm("Очистить накладную?")){rows=[];save();render();}});
+document.querySelector("#invoiceTab").addEventListener("click",()=>switchTab("invoice"));
+document.querySelector("#catalogTab").addEventListener("click",()=>switchTab("catalog"));
+document.querySelector("#saveProductBtn").addEventListener("click",saveProduct);
+document.querySelector("#clearProductBtn").addEventListener("click",clearProductForm);
+document.querySelector("#pPhoto").addEventListener("change", e=>{
+  const file=e.target.files[0]; if(!file) return;
+  const reader = new FileReader();
+  reader.onload = () => {
+    productPhoto = reader.result;
+    document.querySelector("#pPhotoPreview").src = productPhoto;
+    document.querySelector("#pPhotoBox").classList.add("hasPhoto");
+  };
+  reader.readAsDataURL(file);
+});
+
+renderSizePicker();
+renderCatalog();
 if(rows.length===0){ rows=[emptyRow()]; save(); }
 render();
 </script>
