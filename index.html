@@ -290,6 +290,13 @@ let invoiceNumber = localStorage.getItem("invoiceNumberCatalogV1") || "";
 let products = [];
 let localProducts = JSON.parse(localStorage.getItem("catalogProductsV1") || "[]");
 let editingProductId = null;
+
+function getFullPhotoUrl(path){
+  if(!path) return "";
+  if(path.startsWith("http")) return path;
+  return "https://proretail.github.io/invoice-app/" + path;
+}
+
 let categories = JSON.parse(localStorage.getItem("catalogCategoriesFixedV1") || "null") || ["Футболки","Поло","Рубашки","Джинсы","Брюки","Шорты","Худи/свитшоты","Куртки","Костюмы","Другое"];
 let productPhoto = "";
 
@@ -402,7 +409,7 @@ function addProductToInvoice(product){
   r.article = product.article || "";
   r.color = product.color || "";
   r.price = num(product.price);
-  r.photo = product.photo || (product.photos && product.photos[0]) || "";
+  r.photo = getFullPhotoUrl(product.photo || (product.photos && product.photos[0]) || "");
   r.availableSizes = product.sizes && product.sizes.length ? product.sizes : [...sizeFields];
   rows.push(r);
   save();
@@ -692,13 +699,13 @@ function renderCatalog(){
     const photoList = (p.photos && p.photos.length) ? p.photos : (p.photo ? [p.photo] : []);
     if(!p.photo && photoList.length) p.photo = photoList[0];
     if(!p.photo) img.style.display = "none";
-    img.src = p.photo || "";
+    img.src = getFullPhotoUrl(p.photo);
     img.addEventListener("click",()=>showZoom(p.photo));
 
     const gallery = card.querySelector(".productGallery");
     photoList.slice(0,6).forEach(src=>{
       const g = document.createElement("img");
-      g.src = src;
+      g.src = getFullPhotoUrl(src);
       g.addEventListener("click",()=>showZoom(src));
       gallery.appendChild(g);
     });
