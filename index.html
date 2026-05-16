@@ -78,7 +78,7 @@ input.small{font-size:13px;color:#6b7280}
 .empty{padding:18px;background:#fff;border:1px dashed #bbb;border-radius:14px;color:#666;text-align:center}
 @media(max-width:700px){
   main{padding:10px}
-  .topFields,.formGrid,.catalogToolbar{grid-template-columns:1fr}
+  .topFields,.formGrid,.catalogToolbar,.categoryManagerRow{grid-template-columns:1fr}
   .summary{grid-template-columns:1fr 1fr 1fr}
   .summary div{padding:10px}
   .summary b{font-size:28px}
@@ -193,6 +193,14 @@ input.small{font-size:13px;color:#6b7280}
     </div>
   </div>
   <div class="modeNote">Клиент видит каталог и может добавлять товары в накладную. Добавление/удаление товаров доступно только после входа администратора.</div>
+  <div class="categoryManager adminOnly">
+    <label style="display:block;font-size:13px;color:#777;margin-bottom:6px">Управление категориями</label>
+    <div class="categoryManagerRow">
+      <input id="newCategoryName" placeholder="Например: Новинки, Premium, Лето">
+      <button id="addCategoryBtn">+ Категория</button>
+    </div>
+    <div id="categoryChips" class="categoryChips"></div>
+  </div>
   <div class="catalogForm adminOnly">
     <h2>Добавить товар в каталог</h2>
     <div class="formGrid">
@@ -281,8 +289,8 @@ let clientName = localStorage.getItem("invoiceClientCatalogV1") || "";
 let invoiceNumber = localStorage.getItem("invoiceNumberCatalogV1") || "";
 let products = [];
 let localProducts = JSON.parse(localStorage.getItem("catalogProductsV1") || "[]");
-let categories = JSON.parse(localStorage.getItem("catalogCategoriesV1") || "null") || ["Футболки","Поло","Рубашки","Джинсы","Брюки","Шорты","Худи/свитшоты","Куртки","Костюмы","Другое"];
 let editingProductId = null;
+let categories = JSON.parse(localStorage.getItem("catalogCategoriesFixedV1") || "null") || ["Футболки","Поло","Рубашки","Джинсы","Брюки","Шорты","Худи/свитшоты","Куртки","Костюмы","Другое"];
 let productPhoto = "";
 
 const photoModal = document.querySelector("#photoModal");
@@ -313,10 +321,7 @@ async function loadProducts(){
   }catch(e){
     products = localProducts;
   }
-  products.forEach(p => {
-    if(p.category && !categories.includes(p.category)) categories.push(p.category);
-  });
-  saveCategories();
+  syncCategoriesFromProducts();
   renderCategorySelects();
   renderCategoryChips();
   renderCatalog();
@@ -511,8 +516,17 @@ function switchTab(tab){
   document.querySelector("header h1").textContent = isCatalog ? "Каталог" : "Накладная";
 }
 
+
 function saveCategories(){
-  localStorage.setItem("catalogCategoriesV1", JSON.stringify(categories));
+  localStorage.setItem("catalogCategoriesFixedV1", JSON.stringify(categories));
+}
+
+function syncCategoriesFromProducts(){
+  products.forEach(p => {
+    if(p.category && !categories.includes(p.category)) categories.push(p.category);
+  });
+  if(!categories.includes("Другое")) categories.push("Другое");
+  saveCategories();
 }
 
 function renderCategorySelects(){
@@ -521,7 +535,7 @@ function renderCategorySelects(){
   if(filter){
     const current = filter.value || "Все";
     filter.innerHTML = '<option value="Все">Все категории</option>' + categories.map(c => `<option value="${c}">${c}</option>`).join("");
-    filter.value = categories.includes(current) || current === "Все" ? current : "Все";
+    filter.value = (current === "Все" || categories.includes(current)) ? current : "Все";
   }
   if(productCategory){
     const current = productCategory.value || categories[0] || "Другое";
@@ -541,7 +555,7 @@ function renderCategoryChips(){
     chip.querySelector("button").addEventListener("click",()=>{
       if(!isAdmin){ alert("Категории редактирует только админ"); return; }
       if(cat === "Другое"){ alert("Категорию Другое лучше оставить"); return; }
-      if(confirm("Удалить категорию? Товары останутся, но могут перейти в Другое.")){
+      if(confirm("Удалить категорию? Товары в этой категории перейдут в Другое.")){
         categories.splice(index,1);
         products.forEach(p => { if(p.category === cat) p.category = "Другое"; });
         saveCategories();
@@ -710,9 +724,12 @@ let isAdmin = localStorage.getItem("isAdminV3") === "true";
 function applyMode(){
   document.querySelectorAll(".adminOnly").forEach(el => el.classList.toggle("hidden", !isAdmin));
   document.querySelectorAll(".cardButtons .del").forEach(btn => btn.style.display = isAdmin ? "block" : "none");
-  document.querySelector("#adminLoginBtn").style.display = isAdmin ? "none" : "block";
-  document.querySelector("#adminLogoutBtn").style.display = isAdmin ? "block" : "none";
-  document.querySelector("#adminPin").style.display = isAdmin ? "none" : "block";
+  const loginBtn = document.querySelector("#adminLoginBtn");
+  const logoutBtn = document.querySelector("#adminLogoutBtn");
+  const adminPin = document.querySelector("#adminPin");
+  if(loginBtn) loginBtn.style.display = isAdmin ? "none" : "block";
+  if(logoutBtn) logoutBtn.style.display = isAdmin ? "block" : "none";
+  if(adminPin) adminPin.style.display = isAdmin ? "none" : "block";
 }
 
 function loginAdmin(){
@@ -747,7 +764,8 @@ document.querySelector("#clearBtn").addEventListener("click",()=>{if(confirm("О
 document.querySelector("#invoiceTab").addEventListener("click",()=>switchTab("invoice"));
 document.querySelector("#catalogTab").addEventListener("click",()=>switchTab("catalog"));
 document.querySelector("#categoryFilter").addEventListener("change",renderCatalog);
-document.querySelector("#addCategoryBtn").addEventListener("click",addCategory);
+const addCatBtn = document.querySelector("#addCategoryBtn");
+if(addCatBtn) addCatBtn.addEventListener("click",addCategory);
 document.querySelector("#adminLoginBtn").addEventListener("click",loginAdmin);
 document.querySelector("#adminLogoutBtn").addEventListener("click",logoutAdmin);
 document.querySelector("#adminPin").addEventListener("keydown",e=>{ if(e.key==="Enter") loginAdmin(); });
