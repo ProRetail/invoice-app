@@ -33,6 +33,7 @@ th:first-child{background:#f7f7f7;z-index:3}
 input{width:100%;border:0;background:transparent;text-align:center;font-size:16px;outline:none;padding:8px 4px}
 td:first-child input{text-align:left}
 input.small{font-size:13px;color:#6b7280}
+input:disabled{color:#999;background:#f2f2f2;border-radius:6px}
 .photoBox{width:72px;height:72px;border:1px dashed #aaa;border-radius:10px;display:flex;align-items:center;justify-content:center;margin:auto;overflow:hidden;background:#fafafa;cursor:pointer;position:relative}
 .photoBox input{display:none}
 .photoBox img{width:100%;height:100%;object-fit:cover;display:none;cursor:zoom-in}
@@ -216,8 +217,9 @@ input.small{font-size:13px;color:#6b7280}
       <div class="fieldBox"><label>Цена ¥</label><input id="pPrice" type="number" min="0" inputmode="decimal" placeholder="85"></div>
       <div class="fieldBox wide"><label>Описание</label><textarea id="pDesc" placeholder="Краткое описание товара"></textarea></div>
       <div class="fieldBox wide">
-        <label>Фото товара</label>
-        <label class="catalogPhoto" id="pPhotoBox"><input id="pPhoto" type="file" accept="image/*"><img id="pPhotoPreview"><span>＋ Добавить фото</span></label>
+        <label>Путь к фото товара</label>
+        <input id="pPhotoPath" placeholder="images/tshirt-black.jpg">
+        <div class="note">Фото загружаются в GitHub в папку images. В это поле вставляй путь, например images/tshirt-black.jpg</div>
       </div>
       <div class="fieldBox wide">
         <label>Размеры товара</label>
@@ -301,12 +303,8 @@ async function loadProducts(){
     const res = await fetch("products.json?v=" + Date.now());
     if(res.ok){
       const remoteProducts = await res.json();
-      if(Array.isArray(remoteProducts)){
-        products = remoteProducts;
-        localStorage.setItem("catalogProductsV1", JSON.stringify(products));
-      } else {
-        products = localProducts;
-      }
+      products = Array.isArray(remoteProducts) ? remoteProducts : localProducts;
+      localStorage.setItem("catalogProductsV1", JSON.stringify(products));
     } else {
       products = localProducts;
     }
@@ -392,11 +390,15 @@ function addProductToInvoice(product){
   r.color = product.color || "";
   r.price = num(product.price);
   r.photo = product.photo || "";
-  r.availableSizes = product.sizes && product.sizes.length ? product.sizes : [...sizeFields];
+  r.availableSizes = Array.isArray(product.sizes) && product.sizes.length ? product.sizes : [...sizeFields];
   rows.push(r);
   save();
   render();
   switchTab("invoice");
+
+  setTimeout(() => {
+    alert("Товар добавлен в накладную");
+  }, 100);
 }
 
 function cleanFileName(text){
@@ -409,7 +411,22 @@ function getPdfFileName(){
   return number ? `Накладная_${number}_${client}_${date}.pdf` : `Накладная_${client}_${date}.pdf`;
 }
 
-function exportPDF(){
+async function imageToDataUrl(src){
+  if(!src) return "";
+  if(String(src).startsWith("data:")) return src;
+  try{
+    const res = await fetch(src);
+    const blob = await res.blob();
+    return await new Promise(resolve => {
+      const reader = new FileReader();
+      reader.onload = () => resolve(reader.result);
+      reader.onerror = () => resolve("");
+      reader.readAsDataURL(blob);
+    });
+  }catch(e){ return ""; }
+}
+
+async function exportPDF(){
   if(!window.pdfMake){ alert("Для создания PDF нужен интернет при первом открытии."); return; }
   const tq=rows.reduce((s,r)=>s+rowQty(r),0), ts=rows.reduce((s,r)=>s+rowSum(r),0);
   const dateText = new Date().toLocaleDateString("ru-RU");
@@ -419,16 +436,19 @@ function exportPDF(){
     ...sizeLabels.map(s=>({text:s,bold:true,noWrap:true})),{text:"Штук",bold:true},{text:"Цена ¥",bold:true},{text:"Сумма ¥",bold:true}
   ]];
 
-  rows.forEach(r=>body.push([
-    r.name||"",
-    r.article||"",
-    r.photo?{image:r.photo,width:34,height:34,fit:[34,34]}:"",
-    r.color||"",
-    ...sizeFields.map(f=>({text:String(r[f]||""), noWrap:true})),
-    String(rowQty(r)),
-    String(r.price||""),
-    String(rowSum(r))
-  ]));
+  for(const r of rows){
+    const pdfPhoto = await imageToDataUrl(r.photo);
+    body.push([
+      r.name||"",
+      r.article||"",
+      pdfPhoto?{image:pdfPhoto,width:34,height:34,fit:[34,34]}:"",
+      r.color||"",
+      ...sizeFields.map(f=>({text:String(r[f]||""), noWrap:true})),
+      String(rowQty(r)),
+      String(r.price||""),
+      String(rowSum(r))
+    ]);
+  }
 
   body.push([
     {text:"ИТОГО",bold:true},"","","",
@@ -505,8 +525,7 @@ function clearProductForm(){
   document.querySelector("#pPrice").value = "";
   document.querySelector("#pDesc").value = "";
   productPhoto = "";
-  document.querySelector("#pPhotoPreview").src = "";
-  document.querySelector("#pPhotoBox").classList.remove("hasPhoto");
+  document.querySelector("#pPhotoPath").value = "";
   renderSizePicker();
 }
 
@@ -523,7 +542,7 @@ function saveProduct(){
     category: document.querySelector("#pCategory").value,
     price: num(document.querySelector("#pPrice").value),
     desc: document.querySelector("#pDesc").value.trim(),
-    photo: productPhoto,
+    photo: document.querySelector("#pPhotoPath").value.trim(),
     sizes: selectedSizes.length ? selectedSizes : [...sizeFields]
   };
   products.unshift(product);
@@ -561,7 +580,7 @@ function renderCatalog(){
         <div class="productSizes">Размеры: ${sizeText || "все"}</div>
         <div class="productMeta">${p.desc || ""}</div>
         <div class="cardButtons">
-          <button class="add">Добавить в накладную</button>
+          <button class="add">В накладную</button>
           <button class="del">×</button>
         </div>
       </div>
@@ -569,7 +588,11 @@ function renderCatalog(){
     const img = card.querySelector("img");
     if(!p.photo) img.style.display = "none";
     img.addEventListener("click",()=>showZoom(p.photo));
-    card.querySelector(".add").addEventListener("click",()=>addProductToInvoice(p));
+    card.querySelector(".add").addEventListener("click",(e)=>{
+      e.preventDefault();
+      e.stopPropagation();
+      addProductToInvoice(p);
+    });
     card.querySelector(".del").addEventListener("click",()=>{
       if(!isAdmin){ alert("Удалять товар может только администратор"); return; }
       if(confirm("Удалить товар из каталога?")){
@@ -632,17 +655,6 @@ document.querySelector("#adminPin").addEventListener("keydown",e=>{ if(e.key==="
 document.querySelector("#saveProductBtn").addEventListener("click",saveProduct);
 document.querySelector("#clearProductBtn").addEventListener("click",clearProductForm);
 document.querySelector("#exportProductsBtn").addEventListener("click",exportProductsJSON);
-document.querySelector("#pPhoto").addEventListener("change", e=>{
-  const file=e.target.files[0]; if(!file) return;
-  const reader = new FileReader();
-  reader.onload = () => {
-    productPhoto = reader.result;
-    document.querySelector("#pPhotoPreview").src = productPhoto;
-    document.querySelector("#pPhotoBox").classList.add("hasPhoto");
-  };
-  reader.readAsDataURL(file);
-});
-
 renderSizePicker();
 applyMode();
 loadProducts();
