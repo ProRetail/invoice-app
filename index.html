@@ -50,7 +50,7 @@ input.small{font-size:13px;color:#6b7280}
 .photoModal img{max-width:96vw;max-height:92vh;object-fit:contain;border-radius:12px;background:#fff}
 .photoModal button{position:absolute;top:16px;right:16px;width:46px;height:46px;border:0;border-radius:50%;font-size:30px;background:#fff;cursor:pointer}
 #catalogSection{display:none}
-.catalogToolbar{display:grid;grid-template-columns:1fr 1fr;gap:10px;margin-bottom:12px}.modeNote{font-size:12px;color:#666;margin:6px 0 12px;line-height:1.35}.adminOnly.hidden{display:none}.adminLogin{display:grid;grid-template-columns:1fr auto auto;gap:8px}.adminLogin button{border:1px solid #d9dce7;background:#fff;border-radius:10px;padding:8px 10px;font-size:14px;cursor:pointer}.adminLogin #adminLoginBtn{background:#111;color:#fff;border-color:#111}.catalogForm{background:#fff;border:1px solid #e0e3ed;border-radius:16px;padding:12px;margin-bottom:12px}
+.catalogToolbar{display:grid;grid-template-columns:1fr 1fr;gap:10px;margin-bottom:12px}.categoryManager{background:#fff;border:1px solid #e0e3ed;border-radius:14px;padding:10px;margin-bottom:12px}.categoryManagerRow{display:grid;grid-template-columns:1fr auto;gap:8px}.categoryManager button{border:1px solid #d9dce7;background:#1769ff;color:#fff;border-radius:10px;padding:10px 12px;font-size:14px}.categoryChips{display:flex;flex-wrap:wrap;gap:6px;margin-top:10px}.categoryChip{display:flex;align-items:center;gap:6px;border:1px solid #ddd;border-radius:999px;padding:6px 9px;background:#fafafa;font-size:13px}.categoryChip button{background:#ffefef;color:#d11;border-color:#ffefef;border-radius:999px;padding:2px 7px}.modeNote{font-size:12px;color:#666;margin:6px 0 12px;line-height:1.35}.adminOnly.hidden{display:none}.adminLogin{display:grid;grid-template-columns:1fr auto auto;gap:8px}.adminLogin button{border:1px solid #d9dce7;background:#fff;border-radius:10px;padding:8px 10px;font-size:14px;cursor:pointer}.adminLogin #adminLoginBtn{background:#111;color:#fff;border-color:#111}.catalogForm{background:#fff;border:1px solid #e0e3ed;border-radius:16px;padding:12px;margin-bottom:12px}
 .catalogForm h2{margin:0 0 10px;font-size:20px}
 .formGrid{display:grid;grid-template-columns:1.2fr 1fr 1fr 1fr;gap:10px}
 .formGrid .wide{grid-column:1/-1}
@@ -281,6 +281,7 @@ let clientName = localStorage.getItem("invoiceClientCatalogV1") || "";
 let invoiceNumber = localStorage.getItem("invoiceNumberCatalogV1") || "";
 let products = [];
 let localProducts = JSON.parse(localStorage.getItem("catalogProductsV1") || "[]");
+let categories = JSON.parse(localStorage.getItem("catalogCategoriesV1") || "null") || ["Футболки","Поло","Рубашки","Джинсы","Брюки","Шорты","Худи/свитшоты","Куртки","Костюмы","Другое"];
 let editingProductId = null;
 let productPhoto = "";
 
@@ -312,6 +313,12 @@ async function loadProducts(){
   }catch(e){
     products = localProducts;
   }
+  products.forEach(p => {
+    if(p.category && !categories.includes(p.category)) categories.push(p.category);
+  });
+  saveCategories();
+  renderCategorySelects();
+  renderCategoryChips();
   renderCatalog();
 }
 
@@ -504,6 +511,63 @@ function switchTab(tab){
   document.querySelector("header h1").textContent = isCatalog ? "Каталог" : "Накладная";
 }
 
+function saveCategories(){
+  localStorage.setItem("catalogCategoriesV1", JSON.stringify(categories));
+}
+
+function renderCategorySelects(){
+  const filter = document.querySelector("#categoryFilter");
+  const productCategory = document.querySelector("#pCategory");
+  if(filter){
+    const current = filter.value || "Все";
+    filter.innerHTML = '<option value="Все">Все категории</option>' + categories.map(c => `<option value="${c}">${c}</option>`).join("");
+    filter.value = categories.includes(current) || current === "Все" ? current : "Все";
+  }
+  if(productCategory){
+    const current = productCategory.value || categories[0] || "Другое";
+    productCategory.innerHTML = categories.map(c => `<option value="${c}">${c}</option>`).join("");
+    productCategory.value = categories.includes(current) ? current : (categories[0] || "Другое");
+  }
+}
+
+function renderCategoryChips(){
+  const box = document.querySelector("#categoryChips");
+  if(!box) return;
+  box.innerHTML = "";
+  categories.forEach((cat, index)=>{
+    const chip = document.createElement("div");
+    chip.className = "categoryChip";
+    chip.innerHTML = `<span>${cat}</span><button title="Удалить">×</button>`;
+    chip.querySelector("button").addEventListener("click",()=>{
+      if(!isAdmin){ alert("Категории редактирует только админ"); return; }
+      if(cat === "Другое"){ alert("Категорию Другое лучше оставить"); return; }
+      if(confirm("Удалить категорию? Товары останутся, но могут перейти в Другое.")){
+        categories.splice(index,1);
+        products.forEach(p => { if(p.category === cat) p.category = "Другое"; });
+        saveCategories();
+        saveProducts();
+        renderCategorySelects();
+        renderCategoryChips();
+        renderCatalog();
+      }
+    });
+    box.appendChild(chip);
+  });
+}
+
+function addCategory(){
+  if(!isAdmin){ alert("Категории добавляет только админ"); return; }
+  const input = document.querySelector("#newCategoryName");
+  const name = input.value.trim();
+  if(!name) return;
+  if(categories.includes(name)){ alert("Такая категория уже есть"); return; }
+  categories.push(name);
+  saveCategories();
+  input.value = "";
+  renderCategorySelects();
+  renderCategoryChips();
+}
+
 function renderSizePicker(){
   const wrap = document.querySelector("#pSizes");
   wrap.innerHTML = "";
@@ -683,6 +747,7 @@ document.querySelector("#clearBtn").addEventListener("click",()=>{if(confirm("О
 document.querySelector("#invoiceTab").addEventListener("click",()=>switchTab("invoice"));
 document.querySelector("#catalogTab").addEventListener("click",()=>switchTab("catalog"));
 document.querySelector("#categoryFilter").addEventListener("change",renderCatalog);
+document.querySelector("#addCategoryBtn").addEventListener("click",addCategory);
 document.querySelector("#adminLoginBtn").addEventListener("click",loginAdmin);
 document.querySelector("#adminLogoutBtn").addEventListener("click",logoutAdmin);
 document.querySelector("#adminPin").addEventListener("keydown",e=>{ if(e.key==="Enter") loginAdmin(); });
@@ -690,6 +755,8 @@ document.querySelector("#saveProductBtn").addEventListener("click",saveProduct);
 document.querySelector("#clearProductBtn").addEventListener("click",clearProductForm);
 document.querySelector("#cancelEditBtn").addEventListener("click",clearProductForm);
 document.querySelector("#exportProductsBtn").addEventListener("click",exportProductsJSON);
+renderCategorySelects();
+renderCategoryChips();
 renderSizePicker();
 applyMode();
 loadProducts();
