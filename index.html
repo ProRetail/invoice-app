@@ -33,7 +33,6 @@ th:first-child{background:#f7f7f7;z-index:3}
 input{width:100%;border:0;background:transparent;text-align:center;font-size:16px;outline:none;padding:8px 4px}
 td:first-child input{text-align:left}
 input.small{font-size:13px;color:#6b7280}
-input:disabled{color:#999;background:#f2f2f2;border-radius:6px}
 .photoBox{width:72px;height:72px;border:1px dashed #aaa;border-radius:10px;display:flex;align-items:center;justify-content:center;margin:auto;overflow:hidden;background:#fafafa;cursor:pointer;position:relative}
 .photoBox input{display:none}
 .photoBox img{width:100%;height:100%;object-fit:cover;display:none;cursor:zoom-in}
@@ -63,7 +62,7 @@ input:disabled{color:#999;background:#f2f2f2;border-radius:6px}
 .sizePicker{display:flex;flex-wrap:wrap;gap:6px}
 .sizePicker label{display:flex;gap:4px;align-items:center;border:1px solid #ddd;border-radius:10px;padding:7px 9px;background:#fff;font-size:13px}
 .sizePicker input{width:auto}
-.catalogActions{display:grid;grid-template-columns:2fr 1fr 1fr;gap:10px;margin-top:10px}
+.catalogActions{display:grid;grid-template-columns:2fr 1fr 1fr 1fr;gap:10px;margin-top:10px}
 .catalogGrid{display:grid;grid-template-columns:repeat(auto-fill,minmax(190px,1fr));gap:12px}
 .productCard{background:#fff;border:1px solid #e0e3ed;border-radius:16px;overflow:hidden}
 .productCard img{width:100%;height:170px;object-fit:cover;background:#f0f0f0;cursor:zoom-in}
@@ -72,7 +71,7 @@ input:disabled{color:#999;background:#f2f2f2;border-radius:6px}
 .productMeta{font-size:13px;color:#666;margin-bottom:5px;line-height:1.3}
 .productPrice{font-weight:900;font-size:18px;margin:8px 0}
 .productSizes{font-size:12px;color:#333;margin-bottom:8px}
-.cardButtons{display:grid;grid-template-columns:1fr 38px;gap:8px}
+.productGallery{display:flex;gap:6px;overflow:auto;margin:8px 0}.productGallery img{width:46px!important;height:46px!important;border-radius:8px;object-fit:cover;cursor:zoom-in}.cardButtons{display:grid;grid-template-columns:1fr 70px 38px;gap:8px}
 .cardButtons button{border:1px solid #d9dce7;background:#fff;border-radius:12px;padding:10px;font-size:14px}
 .cardButtons .add{background:#1769ff;color:#fff;border-color:#1769ff}
 .cardButtons .del{background:#ffefef;color:#d11;border-color:#ffefef;font-size:18px}
@@ -218,8 +217,8 @@ input:disabled{color:#999;background:#f2f2f2;border-radius:6px}
       <div class="fieldBox wide"><label>Описание</label><textarea id="pDesc" placeholder="Краткое описание товара"></textarea></div>
       <div class="fieldBox wide">
         <label>Путь к фото товара</label>
-        <input id="pPhotoPath" placeholder="images/tshirt-black.jpg">
-        <div class="note">Фото загружаются в GitHub в папку images. В это поле вставляй путь, например images/tshirt-black.jpg</div>
+        <textarea id="pPhotoPath" placeholder="images/tshirt-black-1.jpg&#10;images/tshirt-black-2.jpg&#10;images/tshirt-black-3.jpg"></textarea>
+        <div class="note">Фото загружаются в GitHub в папку images. Каждое фото вставляй с новой строки. Первое фото будет главным.</div>
       </div>
       <div class="fieldBox wide">
         <label>Размеры товара</label>
@@ -229,6 +228,7 @@ input:disabled{color:#999;background:#f2f2f2;border-radius:6px}
     <div class="catalogActions">
       <button class="primary" id="saveProductBtn">Сохранить товар</button>
       <button id="clearProductBtn">Очистить форму</button>
+      <button id="cancelEditBtn" style="display:none">Отмена</button>
       <button id="exportProductsBtn">Скачать products.json</button>
     </div>
   </div>
@@ -281,6 +281,7 @@ let clientName = localStorage.getItem("invoiceClientCatalogV1") || "";
 let invoiceNumber = localStorage.getItem("invoiceNumberCatalogV1") || "";
 let products = [];
 let localProducts = JSON.parse(localStorage.getItem("catalogProductsV1") || "[]");
+let editingProductId = null;
 let productPhoto = "";
 
 const photoModal = document.querySelector("#photoModal");
@@ -389,16 +390,12 @@ function addProductToInvoice(product){
   r.article = product.article || "";
   r.color = product.color || "";
   r.price = num(product.price);
-  r.photo = product.photo || "";
-  r.availableSizes = Array.isArray(product.sizes) && product.sizes.length ? product.sizes : [...sizeFields];
+  r.photo = product.photo || (product.photos && product.photos[0]) || "";
+  r.availableSizes = product.sizes && product.sizes.length ? product.sizes : [...sizeFields];
   rows.push(r);
   save();
   render();
   switchTab("invoice");
-
-  setTimeout(() => {
-    alert("Товар добавлен в накладную");
-  }, 100);
 }
 
 function cleanFileName(text){
@@ -529,8 +526,34 @@ function clearProductForm(){
   renderSizePicker();
 }
 
+function getPhotoPaths(){
+  return document.querySelector("#pPhotoPath").value
+    .split("\n")
+    .map(x => x.trim())
+    .filter(Boolean);
+}
+
+function fillProductForm(product){
+  if(!isAdmin){ alert("Редактировать товар может только администратор"); return; }
+  editingProductId = product.id;
+  document.querySelector("#pName").value = product.name || "";
+  document.querySelector("#pArticle").value = product.article || "";
+  document.querySelector("#pColor").value = product.color || "";
+  document.querySelector("#pCategory").value = product.category || "Другое";
+  document.querySelector("#pPrice").value = product.price || "";
+  document.querySelector("#pPhotoPath").value = (product.photos && product.photos.length ? product.photos : (product.photo ? [product.photo] : [])).join("\n");
+  document.querySelector("#pDesc").value = product.desc || "";
+  renderSizePicker();
+  document.querySelectorAll("#pSizes input").forEach(input => {
+    input.checked = (product.sizes || []).includes(input.value);
+  });
+  document.querySelector("#saveProductBtn").textContent = "Сохранить изменения";
+  document.querySelector("#cancelEditBtn").style.display = "block";
+  window.scrollTo({top:0, behavior:"smooth"});
+}
+
 function saveProduct(){
-  if(!isAdmin){ alert("Добавлять товар может только администратор"); return; }
+  if(!isAdmin){ alert("Добавлять и редактировать товар может только администратор"); return; }
   const name = document.querySelector("#pName").value.trim();
   if(!name){ alert("Укажи название товара"); return; }
   const selectedSizes = Array.from(document.querySelectorAll("#pSizes input:checked")).map(i=>i.value);
@@ -579,20 +602,31 @@ function renderCatalog(){
         <div class="productPrice">${money(p.price)}</div>
         <div class="productSizes">Размеры: ${sizeText || "все"}</div>
         <div class="productMeta">${p.desc || ""}</div>
+        <div class="productGallery"></div>
         <div class="cardButtons">
           <button class="add">В накладную</button>
+          <button class="edit adminOnly">Редакт.</button>
           <button class="del">×</button>
         </div>
       </div>
     `;
     const img = card.querySelector("img");
+    const photoList = (p.photos && p.photos.length) ? p.photos : (p.photo ? [p.photo] : []);
+    if(!p.photo && photoList.length) p.photo = photoList[0];
     if(!p.photo) img.style.display = "none";
+    img.src = p.photo || "";
     img.addEventListener("click",()=>showZoom(p.photo));
-    card.querySelector(".add").addEventListener("click",(e)=>{
-      e.preventDefault();
-      e.stopPropagation();
-      addProductToInvoice(p);
+
+    const gallery = card.querySelector(".productGallery");
+    photoList.slice(0,6).forEach(src=>{
+      const g = document.createElement("img");
+      g.src = src;
+      g.addEventListener("click",()=>showZoom(src));
+      gallery.appendChild(g);
     });
+
+    card.querySelector(".add").addEventListener("click",()=>addProductToInvoice(p));
+    card.querySelector(".edit").addEventListener("click",()=>fillProductForm(p));
     card.querySelector(".del").addEventListener("click",()=>{
       if(!isAdmin){ alert("Удалять товар может только администратор"); return; }
       if(confirm("Удалить товар из каталога?")){
@@ -654,6 +688,7 @@ document.querySelector("#adminLogoutBtn").addEventListener("click",logoutAdmin);
 document.querySelector("#adminPin").addEventListener("keydown",e=>{ if(e.key==="Enter") loginAdmin(); });
 document.querySelector("#saveProductBtn").addEventListener("click",saveProduct);
 document.querySelector("#clearProductBtn").addEventListener("click",clearProductForm);
+document.querySelector("#cancelEditBtn").addEventListener("click",clearProductForm);
 document.querySelector("#exportProductsBtn").addEventListener("click",exportProductsJSON);
 renderSizePicker();
 applyMode();
