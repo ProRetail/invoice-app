@@ -297,6 +297,13 @@ function getFullPhotoUrl(path){
   return "https://proretail.github.io/invoice-app/" + path;
 }
 
+
+function getFullPhotoUrl(path){
+  if(!path) return "";
+  if(path.startsWith("http")) return path;
+  return "https://proretail.github.io/invoice-app/" + path;
+}
+
 let categories = JSON.parse(localStorage.getItem("catalogCategoriesFixedV1") || "null") || ["Футболки","Поло","Рубашки","Джинсы","Брюки","Шорты","Худи/свитшоты","Куртки","Костюмы","Другое"];
 let productPhoto = "";
 
