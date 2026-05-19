@@ -89,7 +89,7 @@ input.small{font-size:13px;color:#6b7280}
 </style>
 </head>
 <body>
-<header><button id="menuBtn">☰</button><h1>Накладная</h1><button id="addBtnTop">＋</button></header>
+<header><button id="menuBtn">☰</button><h1>Накладная</h1><div style="font-size:12px;color:#999;margin-top:-10px;margin-bottom:10px">версия: unlimited-autosave-v3</div><button id="addBtnTop">＋</button></header>
 <main>
 <section class="tabs">
   <button id="invoiceTab" class="active">Накладная</button>
@@ -162,7 +162,8 @@ input.small{font-size:13px;color:#6b7280}
   <button id="exportBtn">CSV</button>
   <button id="clearBtn">Очистить</button>
 </section>
-<div class="note">Фото в таблице можно открыть крупно по нажатию. PDF сохраняется с именем: Накладная_номер_клиент_дата.pdf</div>
+<div class="note">Фото в таблице можно открыть крупно по нажатию. Количество строк в накладной не ограничено. PDF сохраняется с именем: Накладная_номер_клиент_дата.pdf</div>
+<div class="note" id="storageWarning" style="display:none;color:#b45309">Внимание: браузер достиг лимита локального сохранения. Строки можно продолжать добавлять и выгружать в PDF/CSV, но для постоянного хранения очистите старые данные или уменьшите количество фото.</div>
 </section>
 
 <section id="catalogSection">
@@ -277,6 +278,8 @@ input.small{font-size:13px;color:#6b7280}
 <script src="https://cdn.jsdelivr.net/npm/pdfmake@0.2.7/build/pdfmake.min.js"></script>
 <script src="https://cdn.jsdelivr.net/npm/pdfmake@0.2.7/build/vfs_fonts.js"></script>
 <script>
+const APP_VERSION = "unlimited-autosave-v3";
+console.log("Invoice app", APP_VERSION);
 const sizeFields = ["f", "xs28", "s29", "m30", "l31", "xl32", "xxl33", "xxxl34", "xxxxl35", "size36", "size38", "size40", "size42"];
 const sizeLabels = ["F", "XS/28", "S/29", "M/30", "L/31", "XL/32", "XXL/33", "3XL/34", "4XL/35", "36", "38", "40", "42"];
 const sizePairs = [["f", "F"], ["xs28", "XS/28"], ["s29", "S/29"], ["m30", "M/30"], ["l31", "L/31"], ["xl32", "XL/32"], ["xxl33", "XXL/33"], ["xxxl34", "3XL/34"], ["xxxxl35", "4XL/35"], ["size36", "36"], ["size38", "38"], ["size40", "40"], ["size42", "42"]];
@@ -284,11 +287,99 @@ const tbody = document.querySelector("#tbody");
 const template = document.querySelector("#rowTemplate");
 const money = n => new Intl.NumberFormat("ru-RU").format(Number(n) || 0) + " ¥";
 
-let rows = JSON.parse(localStorage.getItem("invoiceRowsCatalogV1") || "[]");
-let clientName = localStorage.getItem("invoiceClientCatalogV1") || "";
-let invoiceNumber = localStorage.getItem("invoiceNumberCatalogV1") || "";
+function safeJsonParse(value, fallback){
+  try{ return JSON.parse(value || ""); }catch(e){ return fallback; }
+}
+
+function getStorageItem(key, fallback=""){
+  try{
+    const value = localStorage.getItem(key);
+    return value === null ? fallback : value;
+  }catch(e){ return fallback; }
+}
+
+function setStorageItem(key, value){
+  try{
+    localStorage.setItem(key, value);
+    return true;
+  }catch(e){
+    console.warn("Не удалось сохранить данные в браузере:", e);
+    return false;
+  }
+}
+
+
+const INVOICE_DRAFT_DB = "invoiceDraftCatalogDBV2";
+const INVOICE_DRAFT_STORE = "drafts";
+const INVOICE_DRAFT_KEY = "currentInvoice";
+let invoiceDbPromise = null;
+let saveDraftTimer = null;
+
+function openInvoiceDb(){
+  if(invoiceDbPromise) return invoiceDbPromise;
+  invoiceDbPromise = new Promise((resolve, reject) => {
+    if(!window.indexedDB){ reject(new Error("IndexedDB недоступен")); return; }
+    const request = indexedDB.open(INVOICE_DRAFT_DB, 1);
+    request.onupgradeneeded = () => {
+      const db = request.result;
+      if(!db.objectStoreNames.contains(INVOICE_DRAFT_STORE)){
+        db.createObjectStore(INVOICE_DRAFT_STORE);
+      }
+    };
+    request.onsuccess = () => resolve(request.result);
+    request.onerror = () => reject(request.error || new Error("Не удалось открыть базу накладной"));
+  });
+  return invoiceDbPromise;
+}
+
+async function setInvoiceDraftToDb(draft){
+  const db = await openInvoiceDb();
+  return new Promise((resolve, reject) => {
+    const tx = db.transaction(INVOICE_DRAFT_STORE, "readwrite");
+    tx.objectStore(INVOICE_DRAFT_STORE).put(draft, INVOICE_DRAFT_KEY);
+    tx.oncomplete = () => resolve(true);
+    tx.onerror = () => reject(tx.error || new Error("Не удалось сохранить черновик"));
+  });
+}
+
+async function getInvoiceDraftFromDb(){
+  try{
+    const db = await openInvoiceDb();
+    return await new Promise((resolve, reject) => {
+      const tx = db.transaction(INVOICE_DRAFT_STORE, "readonly");
+      const request = tx.objectStore(INVOICE_DRAFT_STORE).get(INVOICE_DRAFT_KEY);
+      request.onsuccess = () => resolve(request.result || null);
+      request.onerror = () => reject(request.error || new Error("Не удалось прочитать черновик"));
+    });
+  }catch(e){
+    console.warn("Не удалось загрузить черновик накладной:", e);
+    return null;
+  }
+}
+
+function buildInvoiceDraft(){
+  return { rows, clientName, invoiceNumber, updatedAt: Date.now() };
+}
+
+function saveDraftToIndexedDbNow(){
+  setInvoiceDraftToDb(buildInvoiceDraft()).catch(e => {
+    console.warn("Не удалось сохранить черновик накладной:", e);
+    const warning = document.querySelector("#storageWarning");
+    if(warning) warning.style.display = "block";
+  });
+}
+
+function scheduleInvoiceDraftSave(){
+  clearTimeout(saveDraftTimer);
+  saveDraftTimer = setTimeout(saveDraftToIndexedDbNow, 120);
+}
+
+let rows = [];
+let legacyRowsBackup = safeJsonParse(getStorageItem("invoiceRowsCatalogV1", "[]"), []);
+let clientName = getStorageItem("invoiceClientCatalogV1", "");
+let invoiceNumber = getStorageItem("invoiceNumberCatalogV1", "");
 let products = [];
-let localProducts = JSON.parse(localStorage.getItem("catalogProductsV1") || "[]");
+let localProducts = safeJsonParse(getStorageItem("catalogProductsV1", "[]"), []);
 let editingProductId = null;
 
 function getFullPhotoUrl(path){
@@ -304,7 +395,7 @@ function getFullPhotoUrl(path){
   return "https://proretail.github.io/invoice-app/" + path;
 }
 
-let categories = JSON.parse(localStorage.getItem("catalogCategoriesFixedV1") || "null") || ["Футболки","Поло","Рубашки","Джинсы","Брюки","Шорты","Худи/свитшоты","Куртки","Костюмы","Другое"];
+let categories = safeJsonParse(getStorageItem("catalogCategoriesFixedV1", "null"), null) || ["Футболки","Поло","Рубашки","Джинсы","Брюки","Шорты","Худи/свитшоты","Куртки","Костюмы","Другое"];
 let productPhoto = "";
 
 const photoModal = document.querySelector("#photoModal");
@@ -315,12 +406,16 @@ photoModal.addEventListener("click", e => { if(e.target === photoModal) photoMod
 function showZoom(src){ if(!src) return; modalImage.src = src; photoModal.classList.add("active"); }
 function num(v){ return Number(String(v || "").replace(",", ".")) || 0; }
 function emptyRow(){ const r={name:"",article:"",photo:"",color:"",price:0,availableSizes:[...sizeFields]}; sizeFields.forEach(f=>r[f]=0); return r; }
-function save(){ 
-  localStorage.setItem("invoiceRowsCatalogV1", JSON.stringify(rows)); 
-  localStorage.setItem("invoiceClientCatalogV1", clientName); 
-  localStorage.setItem("invoiceNumberCatalogV1", invoiceNumber); 
+function save(){
+  // ВАЖНО: строки накладной НЕ сохраняем в localStorage.
+  // localStorage быстро забивается и раньше из-за этого накладная упиралась примерно в 15 позиций.
+  // Все строки сохраняются в IndexedDB — там можно хранить намного больше данных.
+  scheduleInvoiceDraftSave();
+  setStorageItem("invoiceClientCatalogV1", clientName);
+  setStorageItem("invoiceNumberCatalogV1", invoiceNumber);
+  try{ localStorage.removeItem("invoiceRowsCatalogV1"); }catch(e){}
 }
-function saveProducts(){ localStorage.setItem("catalogProductsV1", JSON.stringify(products)); }
+function saveProducts(){ setStorageItem("catalogProductsV1", JSON.stringify(products)); }
 
 async function loadProducts(){
   try{
@@ -328,7 +423,7 @@ async function loadProducts(){
     if(res.ok){
       const remoteProducts = await res.json();
       products = Array.isArray(remoteProducts) ? remoteProducts : localProducts;
-      localStorage.setItem("catalogProductsV1", JSON.stringify(products));
+      setStorageItem("catalogProductsV1", JSON.stringify(products));
     } else {
       products = localProducts;
     }
@@ -532,7 +627,7 @@ function switchTab(tab){
 
 
 function saveCategories(){
-  localStorage.setItem("catalogCategoriesFixedV1", JSON.stringify(categories));
+  setStorageItem("catalogCategoriesFixedV1", JSON.stringify(categories));
 }
 
 function syncCategoriesFromProducts(){
@@ -791,9 +886,37 @@ renderCategorySelects();
 renderCategoryChips();
 renderSizePicker();
 applyMode();
-loadProducts();
-if(rows.length===0){ rows=[emptyRow()]; save(); }
-render();
+
+window.addEventListener("beforeunload", () => {
+  try{ saveDraftToIndexedDbNow(); }catch(e){}
+});
+
+document.addEventListener("visibilitychange", () => {
+  if(document.visibilityState === "hidden"){
+    try{ saveDraftToIndexedDbNow(); }catch(e){}
+  }
+});
+
+async function initInvoiceApp(){
+  let draft = null;
+  try{ draft = await getInvoiceDraftFromDb(); }catch(e){ console.warn("Черновик IndexedDB не прочитан", e); }
+  if(draft && Array.isArray(draft.rows) && draft.rows.length){
+    rows = draft.rows;
+    clientName = draft.clientName || clientName || "";
+    invoiceNumber = draft.invoiceNumber || invoiceNumber || "";
+  } else if(Array.isArray(legacyRowsBackup) && legacyRowsBackup.length){
+    rows = legacyRowsBackup;
+  }
+  document.querySelector("#clientName").value = clientName;
+  document.querySelector("#invoiceNumber").value = invoiceNumber;
+  await loadProducts();
+  if(rows.length===0){ rows=[emptyRow()]; }
+  render();
+  saveDraftToIndexedDbNow();
+  try{ localStorage.removeItem("invoiceRowsCatalogV1"); }catch(e){}
+}
+
+initInvoiceApp();
 </script>
 </body>
 </html>
