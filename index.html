@@ -546,17 +546,19 @@ async function imageToDataUrl(src){
 
 async function exportPDF(){
   if(!window.pdfMake){ alert("Для создания PDF нужен интернет при первом открытии."); return; }
+  const PDF_ROWS_PER_PAGE = 14;
   const tq=rows.reduce((s,r)=>s+rowQty(r),0), ts=rows.reduce((s,r)=>s+rowSum(r),0);
   const dateText = new Date().toLocaleDateString("ru-RU");
 
-  const body=[[
+  const headerRow = [
     {text:"Наименование",bold:true},{text:"Артикул",bold:true},{text:"Фото",bold:true},{text:"Цвет",bold:true},
     ...sizeLabels.map(s=>({text:s,bold:true,noWrap:true})),{text:"Штук",bold:true},{text:"Цена ¥",bold:true},{text:"Сумма ¥",bold:true}
-  ]];
+  ];
 
+  const productRows = [];
   for(const r of rows){
     const pdfPhoto = await imageToDataUrl(r.photo);
-    body.push([
+    productRows.push([
       r.name||"",
       r.article||"",
       pdfPhoto?{image:pdfPhoto,width:34,height:34,fit:[34,34]}:"",
@@ -568,37 +570,60 @@ async function exportPDF(){
     ]);
   }
 
-  body.push([
+  const totalRow = [
     {text:"ИТОГО",bold:true},"","","",
     ...sizeFields.map(f=>({text:String(rows.reduce((s,r)=>s+num(r[f]),0)),bold:true,noWrap:true})),
     {text:String(tq),bold:true},"",{text:String(ts),bold:true}
-  ]);
+  ];
+
+  const tableLayout = {
+    hLineWidth:()=>0.4,
+    vLineWidth:()=>0.4,
+    paddingLeft:()=>2,
+    paddingRight:()=>2,
+    paddingTop:()=>2,
+    paddingBottom:()=>2
+  };
+
+  const makeTable = (tableRows) => ({
+    table:{
+      headerRows:1,
+      dontBreakRows:true,
+      widths:[50,34,38,34,...sizeFields.map(()=>24),24,28,32],
+      body:[headerRow, ...tableRows]
+    },
+    layout:tableLayout
+  });
+
+  const content = [
+    {text:"НАКЛАДНАЯ",fontSize:16,bold:true,alignment:"left",margin:[0,0,0,4]},
+    {columns:[
+      {text:`Клиент: ${clientName || "—"}`,fontSize:10,bold:true},
+      {text:`№: ${invoiceNumber || "—"}`,fontSize:10,bold:true,alignment:"center"},
+      {text:`Дата: ${dateText}`,fontSize:10,bold:true,alignment:"right"}
+    ], margin:[0,0,0,8]},
+    {text:`Позиций: ${rows.length}   Количество: ${tq}   Итоговая сумма: ${ts} ¥`,fontSize:10,bold:true,margin:[0,0,0,8]}
+  ];
+
+  for(let i=0; i<productRows.length; i+=PDF_ROWS_PER_PAGE){
+    if(i>0) content.push({text:"", pageBreak:"before", margin:[0,0,0,0]});
+    const chunk = productRows.slice(i, i + PDF_ROWS_PER_PAGE);
+    const isLastChunk = i + PDF_ROWS_PER_PAGE >= productRows.length;
+    const rowsForThisPage = isLastChunk ? [...chunk, totalRow] : chunk;
+    content.push(makeTable(rowsForThisPage));
+  }
+
+  if(productRows.length === 0){
+    content.push(makeTable([totalRow]));
+  }
+
+  content.push({text:`ИТОГО К ОПЛАТЕ: ${ts} ¥`,fontSize:15,bold:true,alignment:"right",margin:[0,10,0,0]});
 
   const doc={
     pageSize:"A4",
     pageOrientation:"landscape",
     pageMargins:[10,12,10,12],
-    content:[
-      {text:"НАКЛАДНАЯ",fontSize:16,bold:true,alignment:"left",margin:[0,0,0,4]},
-      {columns:[
-        {text:`Клиент: ${clientName || "—"}`,fontSize:10,bold:true},
-        {text:`№: ${invoiceNumber || "—"}`,fontSize:10,bold:true,alignment:"center"},
-        {text:`Дата: ${dateText}`,fontSize:10,bold:true,alignment:"right"}
-      ], margin:[0,0,0,8]},
-      {text:`Позиций: ${rows.length}   Количество: ${tq}   Итоговая сумма: ${ts} ¥`,fontSize:10,bold:true,margin:[0,0,0,8]},
-      {
-        table:{headerRows:1,widths:[50,34,38,34,...sizeFields.map(()=>24),24,28,32],body},
-        layout:{
-          hLineWidth:()=>0.4,
-          vLineWidth:()=>0.4,
-          paddingLeft:()=>2,
-          paddingRight:()=>2,
-          paddingTop:()=>2,
-          paddingBottom:()=>2
-        }
-      },
-      {text:`ИТОГО К ОПЛАТЕ: ${ts} ¥`,fontSize:15,bold:true,alignment:"right",margin:[0,10,0,0]}
-    ],
+    content,
     defaultStyle:{font:"Roboto",fontSize:6.5,alignment:"center"}
   };
 
